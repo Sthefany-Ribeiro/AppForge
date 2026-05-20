@@ -1,0 +1,7 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: appforge
+  labels:
+    project: appforge
+    managed-by: kubernetes

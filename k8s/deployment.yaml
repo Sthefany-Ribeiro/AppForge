@@ -1,0 +1,54 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: appforge
+  namespace: appforge
+  labels:
+    app: appforge
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: appforge
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+  template:
+    metadata:
+      labels:
+        app: appforge
+    spec:
+      containers:
+        - name: appforge
+          image: PLACEHOLDER_ECR_URL:latest
+          ports:
+            - containerPort: 3000
+          envFrom:
+            - configMapRef:
+                name: appforge-config
+            - secretRef:
+                name: appforge-secret
+          resources:
+            requests:
+              cpu: "100m"
+              memory: "128Mi"
+            limits:
+              cpu: "500m"
+              memory: "512Mi"
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: 3000
+            initialDelaySeconds: 15
+            periodSeconds: 20
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /readyz
+              port: 3000
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            failureThreshold: 3
+      terminationGracePeriodSeconds: 30
