@@ -1,0 +1,131 @@
+name: CI/CD
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+env:
+  AWS_REGION: us-west-2
+  ECR_REPOSITORY: appforge-app
+  EKS_CLUSTER: appforge-dev
+
+jobs:
+  test:
+    name: Test
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout código
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+          cache-dependency-path: app/package-lock.json
+
+      - name: Instala dependências
+        working-directory: app
+        run: npm ci
+
+      - name: Roda os testes
+        working-directory: app
+        run: npm test
+
+  build:
+    name: Build e Push ECR
+    runs-on: ubuntu-latest
+    needs: test
+    if: github.ref == 'refs/heads/main'
+
+    outputs:
+      image_tag: ${{ steps.meta.outputs.tag }}
+      ecr_url: ${{ steps.login-ecr.outputs.registry }}
+
+    steps:
+      - name: Checkout código
+        uses: actions/checkout@v4
+
+      - name: Configura credenciais AWS via OIDC
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Login no ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Define a tag da imagem
+        id: meta
+        run: echo "tag=${GITHUB_SHA::8}" >> $GITHUB_OUTPUT
+
+      - name: Build e push da imagem
+        env:
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+          IMAGE_TAG: ${{ steps.meta.outputs.tag }}
+        run: |
+          docker build \
+            --target production \
+            -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG \
+            -t $ECR_REGISTRY/$ECR_REPOSITORY:latest \
+            app/
+          docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
+          docker push $ECR_REGISTRY/$ECR_REPOSITORY:latest
+
+  deploy:
+    name: Deploy EKS
+    runs-on: ubuntu-latest
+    needs: build
+    if: github.ref == 'refs/heads/main'
+
+    steps:
+      - name: Checkout código
+        uses: actions/checkout@v4
+
+      - name: Configura credenciais AWS via OIDC
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Configura kubectl
+        run: |
+          aws eks update-kubeconfig \
+            --name ${{ env.EKS_CLUSTER }} \
+            --region ${{ env.AWS_REGION }}
+
+      - name: Atualiza secrets no manifesto
+        env:
+          ECR_REGISTRY: ${{ needs.build.outputs.ecr_url }}
+          IMAGE_TAG: ${{ needs.build.outputs.image_tag }}
+          DB_HOST: ${{ secrets.DB_HOST }}
+          DB_USER: ${{ secrets.DB_USER }}
+          DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
+        run: |
+          sed -i "s|PLACEHOLDER_ECR_URL|$ECR_REGISTRY/$ECR_REPOSITORY|g" k8s/deployment.yaml
+          sed -i "s|:latest|:$IMAGE_TAG|g" k8s/deployment.yaml
+          sed -i "s|DB_HOST: \"PLACEHOLDER\"|DB_HOST: \"$DB_HOST\"|g" k8s/secret.yaml
+          sed -i "s|DB_USER: \"PLACEHOLDER\"|DB_USER: \"$DB_USER\"|g" k8s/secret.yaml
+          sed -i "s|DB_PASSWORD: \"PLACEHOLDER\"|DB_PASSWORD: \"$DB_PASSWORD\"|g" k8s/secret.yaml
+
+      - name: Deploy no EKS
+        run: |
+          kubectl apply -f k8s/namespace.yaml
+          kubectl apply -f k8s/configmap.yaml
+          kubectl apply -f k8s/secret.yaml
+          kubectl apply -f k8s/deployment.yaml
+          kubectl apply -f k8s/service.yaml
+          kubectl apply -f k8s/ingress.yaml
+          kubectl apply -f k8s/hpa.yaml
+
+      - name: Aguarda o rollout
+        run: |
+          kubectl rollout status deployment/appforge \
+            -n appforge \
+            --timeout=300s
