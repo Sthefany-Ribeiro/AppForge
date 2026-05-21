@@ -36,6 +36,10 @@ jobs:
       - name: Roda os testes
         working-directory: app
         run: npm test
+      
+      - name: Roda os testes
+        working-directory: app
+        run: npm test -- --forceExit
 
   build:
     name: Build e Push ECR
@@ -130,6 +134,3 @@ jobs:
             -n appforge \
             --timeout=300s
       
-      - name: Roda os testes
-        working-directory: app
-        run: npm test -- --forceExit
