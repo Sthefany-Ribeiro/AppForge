@@ -9,7 +9,7 @@ terraform {
   }
 
   backend "s3" {
-    bucket         = "appforge-tfstate-Sthefany-Ribeiro"
+    bucket         = "appforge-tfstate-sthefanyribeiro"
     key            = "global/terraform.tfstate"
     region         = "us-west-2"
     dynamodb_table = "appforge-tfstate-lock"
