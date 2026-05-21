@@ -29,7 +29,7 @@ resource "aws_iam_role" "github_actions" {
         Action = "sts:AssumeRoleWithWebIdentity"
         Condition = {
           StringLike = {
-            "token.actions.githubusercontent.com:sub" = "repo:Sthefany-Ribeiro/appforge:*"
+            "token.actions.githubusercontent.com:sub" = "repo:Sthefany-Ribeiro/AppForge:*"
           }
           StringEquals = {
             "token.actions.githubusercontent.com:aud" = "sts.amazonaws.com"
