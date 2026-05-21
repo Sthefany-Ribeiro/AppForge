@@ -19,17 +19,18 @@ RDS PostgreSQL
 
 ## Estrutura
 
+```
 appforge/
-├── app/                    # aplicação Node.js
-│   ├── Dockerfile          # multi-stage build
+├── app/
+│   ├── Dockerfile
 │   ├── package.json
 │   └── src/
 │       ├── index.js
 │       ├── db.js
 │       └── routes/
-│           ├── health.js   # liveness e readiness probes
-│           └── tasks.js    # CRUD de tarefas
-├── k8s/                    # manifestos Kubernetes
+│           ├── health.js
+│           └── tasks.js
+├── k8s/
 │   ├── namespace.yaml
 │   ├── configmap.yaml
 │   ├── secret.yaml
@@ -37,18 +38,20 @@ appforge/
 │   ├── service.yaml
 │   ├── ingress.yaml
 │   └── hpa.yaml
-├── terraform/              # infraestrutura como código
+├── terraform/
 │   ├── main.tf
 │   ├── variables.tf
 │   ├── outputs.tf
+│   ├── github-oidc.tf
 │   └── modules/
-│       ├── vpc/            # rede, subnets, NAT gateway
-│       ├── eks/            # cluster Kubernetes + ECR
-│       └── rds/            # PostgreSQL gerenciado
+│       ├── vpc/
+│       ├── eks/
+│       └── rds/
 ├── .github/
 │   └── workflows/
-│       └── ci-cd.yaml      # pipeline completo
-└── docker-compose.yml      # ambiente de desenvolvimento local
+│       └── ci-cd.yaml
+└── docker-compose.yml
+```
 
 ## Como rodar local
 
