@@ -1,12 +1,21 @@
 const request = require('supertest')
-const app = require('../index')
-const db = require('../db')
 
-jest.mock('../db', () => ({
+const mockPool = {
   query: jest.fn().mockResolvedValue({ rows: [], rowCount: 0 }),
   connect: jest.fn().mockImplementation((cb) => cb(null, {}, () => {})),
   end: jest.fn(),
-}))
+}
+
+jest.mock('../db', () => mockPool)
+
+let app
+beforeAll(() => {
+  app = require('../index')
+})
+
+afterAll((done) => {
+  done()
+})
 
 describe('GET /healthz', () => {
   it('retorna 200 e status ok', async () => {
@@ -22,8 +31,4 @@ describe('GET /readyz', () => {
     expect(res.status).toBe(200)
     expect(res.body.status).toBe('ready')
   })
-})
-
-afterAll(async () => {
-  await db.end()
 })

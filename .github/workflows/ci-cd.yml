@@ -36,7 +36,7 @@ jobs:
       
       - name: Roda os testes
         working-directory: app
-        run: npm test -- --forceExit --testTimeout=10000
+        run: npm test
 
   build:
     name: Build e Push ECR
